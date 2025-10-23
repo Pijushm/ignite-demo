@@ -1,5 +1,6 @@
 package com.example.ignite_demo;
 
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
@@ -19,8 +20,10 @@ public class UserController {
   @Autowired
   private UserService userService;
 
-  @Autowired
-  private UserRepository userRepository;
+  @PostMapping("/loadAll")
+  public String loadAllUsersIntoCache() throws InterruptedException {
+    return userService.loadAllUsersIntoCache();
+  }
 
   @GetMapping
   public List<User> getAllUsers() {
@@ -36,20 +39,14 @@ public class UserController {
   public User createUser(@RequestBody User user) {
     return userService.createUser(user);
   }
-
-  @PutMapping("/update")
-  public User updateUser(@RequestBody User user) {
-    return userService.updateUser(user);
-  }
-
-  @DeleteMapping("/{id}")
-  public boolean deleteUser(@PathVariable("id") int id) {
-    return userService.deleteUser(id);
-  }
-
-  @PostMapping("/load-cache")
-  public String loadCache() {
-    userRepository.findAll().forEach(user -> userService.createUser(user));
-    return "Cache loaded successfully!";
-  }
+//
+//  @PutMapping("/update")
+//  public User updateUser(@RequestBody User user) {
+//    return userService.updateUser(user);
+//  }
+//
+//  @DeleteMapping("/{id}")
+//  public boolean deleteUser(@PathVariable("id") int id) {
+//    return userService.deleteUser(id);
+//  }
 }

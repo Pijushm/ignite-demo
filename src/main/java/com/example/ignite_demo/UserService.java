@@ -3,45 +3,66 @@ package com.example.ignite_demo;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.ignite.IgniteCache;
+import org.apache.ignite.cache.query.SqlFieldsQuery;
+import org.apache.ignite.client.ClientCache;
+import org.apache.ignite.client.IgniteClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService {
 
-  private IgniteCache<Long, User> userCache;
+  private final IgniteClient igniteClient;
+  private final ClientCache<Long, User> userCache;
 
-  public UserService(IgniteCache<Long, User> userCache) {
-    this.userCache = userCache;
-    userCache.loadCache(null);
+  public UserService(IgniteClient igniteClient) {
+    this.igniteClient = igniteClient;
+    this.userCache = igniteClient.getOrCreateCache("userCache");
+  }
+
+
+  public String loadAllUsersIntoCache() throws InterruptedException {
+    return igniteClient.compute().execute(
+        "com.example.LoadUserCacheTask",
+        null // argument, not needed here
+    );
   }
 
   public List<User> getAllUsers() {
     List<User> users = new ArrayList<>();
-    for (javax.cache.Cache.Entry<Long, User> integerPersonEntry : userCache) {
-      users.add(integerPersonEntry.getValue());
+    String sql = "SELECT id, name, email FROM User"; // select explicit fields
+
+    List<List<?>> result = userCache.query(new SqlFieldsQuery(sql)).getAll();
+
+    for (List<?> row : result) {
+      Long id = row.get(0) == null ? null : ((Number) row.get(0)).longValue();
+      String name = (String) row.get(1);
+      String email = (String) row.get(2);
+      users.add(new User(id, name, email));
     }
+
+    System.out.println(users.size());
     return users;
   }
 
   @Transactional(transactionManager = "transactionManager")
   public User getUser(long id) {
-    return (User) userCache.get(id);
+
+    System.out.println(userCache.get(id));
+    return userCache.get(id);
   }
 
-  public User createUser(User user  ) {
-    return userCache.getAndPut((long) user.getId(), user);
+  public User createUser(User user) {
+    userCache.put(user.getId(), user);
+    return user;
   }
 
   public User updateUser(User user) {
-    return userCache.getAndPut((long) user.getId(), user);
+    userCache.put(user.getId(), user);
+    return user;
   }
 
   public boolean deleteUser(long id) {
-    if (userCache.containsKey(id)) {
-      return userCache.remove(id);
-    }
-    return false;
+    return userCache.remove(id);
   }
 }

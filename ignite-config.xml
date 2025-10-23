@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+  xmlns:util="http://www.springframework.org/schema/util"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="
+         http://www.springframework.org/schema/beans
+         http://www.springframework.org/schema/beans/spring-beans.xsd
+         http://www.springframework.org/schema/util
+         http://www.springframework.org/schema/util/spring-util.xsd">
+
+<!--  <bean class="com.mysql.cj.jdbc.MysqlDataSource" id="mysqlDataSource">-->
+<!--    <property name="URL" value="jdbc:mysql://mysql:3306/ignite_demo?useSSL=false&amp;allowPublicKeyRetrieval=true"/>-->
+<!--    <property name="user" value="testuser"/>-->
+<!--    <property name="password" value="password"/>-->
+<!--  </bean>-->
+
+  <bean class="org.postgresql.ds.PGSimpleDataSource" id="mysqlDataSource">
+    <property name="url" value="jdbc:postgresql://postgres:5432/ignite_demo"/>
+    <property name="user" value="testuser"/>
+    <property name="password" value="password"/>
+  </bean>
+
+<!--  <property name="discoverySpi">-->
+<!--    <bean class="org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi">-->
+<!--      <property name="ipFinder">-->
+<!--        <bean class="org.apache.ignite.spi.discovery.tcp.ipfinder.jdbc.TcpDiscoveryJdbcIpFinder">-->
+<!--          <property name="dataSource" ref="mysqlDataSource"/>-->
+<!--        </bean>-->
+<!--      </property>-->
+
+<!--      <bean class="org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder">-->
+<!--        <property name="addresses">-->
+<!--          <list>-->
+<!--            <value>127.0.0.1:47500..47509</value>-->
+<!--            <value>127.0.0.1:47500..47509:47500..47509</value>-->
+<!--          </list>-->
+<!--        </property>-->
+<!--      </bean>-->
+
+<!--    </bean>-->
+<!--  </property>-->
+
+
+  <!-- Enable DEBUG for cache store (via system property) -->
+  <!-- Ignite configuration -->
+  <bean class="org.apache.ignite.configuration.IgniteConfiguration">
+
+    <property name="peerClassLoadingEnabled" value="true"/>
+
+    <property name="clientConnectorConfiguration">
+      <bean class="org.apache.ignite.configuration.ClientConnectorConfiguration">
+        <property name="thinClientConfiguration">
+          <bean class="org.apache.ignite.configuration.ThinClientConfiguration">
+            <property name="maxActiveComputeTasksPerConnection" value="100" />
+          </bean>
+        </property>
+      </bean>
+    </property>
+
+    <property name="dataStorageConfiguration">
+      <bean class="org.apache.ignite.configuration.DataStorageConfiguration">
+        <!-- Default data region configuration -->
+        <property name="defaultDataRegionConfiguration">
+          <bean class="org.apache.ignite.configuration.DataRegionConfiguration">
+
+            <property name="metricsEnabled" value="false"/>
+            <property name="name" value="defaultDataRegion"/>
+            <property name="initialSize" value="#{110 * 1024 * 1024}"/>
+            <property name="maxSize" value="#{ 110 * 1024 * 1024}"/>
+<!--            <property name="pageEvictionMode" value="RANDOM_2_LRU"/>-->
+          </bean>
+        </property>
+
+        <property name="dataRegionConfigurations">
+          <list>
+            <bean class="org.apache.ignite.configuration.DataRegionConfiguration">
+              <property name="name" value="userCache_Region"/>
+              <!-- Memory region of 20 MB initial size. -->
+              <property name="initialSize" value="#{20 * 1024 * 1024}"/>
+              <!-- Maximum size is 40 MB. -->
+              <property name="maxSize" value="#{60 * 1024 * 1024}"/>
+              <!-- Enabling eviction for this memory region. -->
+              <property name="pageEvictionMode" value="RANDOM_2_LRU"/>
+<!--              <property name="evictionThreshold" value="0.9" />-->
+            </bean>
+
+            <bean class="org.apache.ignite.configuration.DataRegionConfiguration">
+              <property name="name" value="50MB_Region_Eviction"/>
+              <!-- Memory region of 20 MB initial size. -->
+              <property name="initialSize" value="#{20 * 1024 * 1024}"/>
+              <!-- Maximum size is 40 MB. -->
+              <property name="maxSize" value="#{50 * 1024 * 1024}"/>
+              <!-- Enabling eviction for this memory region. -->
+<!--              <property name="pageEvictionMode" value="RANDOM_2_LRU"/>-->
+            </bean>
+          </list>
+        </property>
+      </bean>
+    </property>
+
+    <property name="igniteInstanceName" value="debug-xml-server"/>
+    <!-- Cache configuration -->
+    <property name="cacheConfiguration">
+      <list>
+        <bean class="org.apache.ignite.configuration.CacheConfiguration">
+          <property name="name" value="userCache"/>
+          <property name="cacheMode" value="PARTITIONED"/>
+          <property name="atomicityMode" value="ATOMIC"/>
+          <property name="readThrough" value="true"/>
+          <property name="writeThrough" value="true"/>
+
+          <property name="statisticsEnabled" value="true"/>
+          <property name="dataRegionName" value="userCache_Region"/>
+
+          <!-- JDBC store -->
+          <property name="cacheStoreFactory">
+            <bean class="org.apache.ignite.cache.store.jdbc.CacheJdbcPojoStoreFactory">
+              <property name="dataSourceBean" value="mysqlDataSource"/>
+              <property name="dialect">
+<!--                <bean class="org.apache.ignite.cache.store.jdbc.dialect.MySQLDialect"/>-->
+                <bean class="org.apache.ignite.cache.store.jdbc.dialect.BasicJdbcDialect"/>
+              </property>
+              <property name="types">
+                <list>
+                  <bean class="org.apache.ignite.cache.store.jdbc.JdbcType">
+                    <property name="cacheName" value="userCache"/>
+                    <property name="keyType" value="java.lang.Long"/>
+                    <property name="valueType" value="com.example.ignite_demo.User"/>
+                    <property name="databaseTable" value="users"/>
+                    <property name="keyFields">
+                      <list>
+                        <bean class="org.apache.ignite.cache.store.jdbc.JdbcTypeField">
+                          <constructor-arg><util:constant static-field="java.sql.Types.BIGINT"/></constructor-arg>
+                          <constructor-arg value="id"/>
+                          <constructor-arg value="java.lang.Long"/>
+                          <constructor-arg value="id"/>
+                        </bean>
+                      </list>
+                    </property>
+                    <property name="valueFields">
+                      <list>
+                        <bean class="org.apache.ignite.cache.store.jdbc.JdbcTypeField">
+                          <constructor-arg><util:constant static-field="java.sql.Types.BIGINT"/></constructor-arg>
+                          <constructor-arg value="id"/>
+                          <constructor-arg value="java.lang.Long"/>
+                          <constructor-arg value="id"/>
+                        </bean>
+                        <bean class="org.apache.ignite.cache.store.jdbc.JdbcTypeField">
+                          <constructor-arg><util:constant static-field="java.sql.Types.VARCHAR"/></constructor-arg>
+                          <constructor-arg value="name"/>
+                          <constructor-arg value="java.lang.String"/>
+                          <constructor-arg value="name"/>
+                        </bean>
+                        <bean class="org.apache.ignite.cache.store.jdbc.JdbcTypeField">
+                          <constructor-arg><util:constant static-field="java.sql.Types.VARCHAR"/></constructor-arg>
+                          <constructor-arg value="email"/>
+                          <constructor-arg value="java.lang.String"/>
+                          <constructor-arg value="email"/>
+                        </bean>
+                      </list>
+                    </property>
+                  </bean>
+                </list>
+              </property>
+            </bean>
+          </property>
+
+          <!-- Optional: query entities for SQL queries -->
+          <property name="queryEntities">
+            <list>
+              <bean class="org.apache.ignite.cache.QueryEntity">
+                <property name="keyType" value="java.lang.Long"/>
+                <property name="valueType" value="com.example.ignite_demo.User"/>
+                <property name="keyFieldName" value="id"/>
+                <property name="fields">
+                  <map>
+                    <entry key="id" value="java.lang.Long"/>
+                    <entry key="name" value="java.lang.String"/>
+                    <entry key="email" value="java.lang.String"/>
+                  </map>
+                </property>
+              </bean>
+            </list>
+          </property>
+
+        </bean>
+      </list>
+    </property>
+
+  </bean>
+</beans>

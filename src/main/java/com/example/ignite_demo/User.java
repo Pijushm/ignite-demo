@@ -1,14 +1,10 @@
 package com.example.ignite_demo;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import java.io.Serializable;
 
-@Entity
-@Table(name = "users")
-public class User {
 
-  @Id
+public class User implements Serializable {
+
   private Long id;
 
   private String name;
